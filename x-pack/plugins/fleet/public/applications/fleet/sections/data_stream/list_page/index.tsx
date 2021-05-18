@@ -224,7 +224,7 @@ export const DataStreamListPage: React.FunctionComponent<{}> = () => {
     for (const field in dataValues) {
       if (filterOptions[field]) {
         filterOptions[field] = dataValues[field].sort().map((option) => ({
-          value: option,
+          value: `"${option}"`,
           name: option,
         }));
       }
