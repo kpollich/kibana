@@ -46,6 +46,7 @@ export class ConcurrentInstallOperationError extends FleetError {}
 export class BundledPackageLocationNotFoundError extends FleetError {}
 export class KibanaSOReferenceError extends FleetError {}
 export class PackageAlreadyInstalledError extends FleetError {}
+export class PackageInstallationSavedObjectConflictError extends FleetError {}
 
 export class AgentPolicyError extends FleetError {}
 export class AgentPolicyNotFoundError extends FleetError {}

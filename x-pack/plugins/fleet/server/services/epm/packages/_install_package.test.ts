@@ -14,7 +14,10 @@ import { savedObjectsClientMock, elasticsearchServiceMock } from '@kbn/core/serv
 import { loggerMock } from '@kbn/logging-mocks';
 import { DEFAULT_SPACE_ID } from '@kbn/spaces-plugin/common/constants';
 
-import { ConcurrentInstallOperationError } from '../../../errors';
+import {
+  ConcurrentInstallOperationError,
+  PackageInstallationSavedObjectConflictError,
+} from '../../../errors';
 
 import type { Installation } from '../../../../common';
 
@@ -82,49 +85,97 @@ describe('_installPackage', () => {
       saved_objects: [],
     });
     jest.mocked(restartInstallation).mockReset();
+    mockedInstallKibanaAssetsAndReferences.mockReset();
+    mockedUpdateCurrentWriteIndices.mockReset();
+    mockedInstallIndexTemplatesAndPipelines.mockReset();
   });
-  it('handles errors from  installKibanaAssets', async () => {
-    // force errors from this function
-    mockedInstallKibanaAssetsAndReferences.mockImplementation(async () => {
-      throw new Error('mocked async error A: should be caught');
+
+  describe('errors from installKibanaAssets', () => {
+    it('handles generic errors', async () => {
+      // force errors from this function
+      mockedInstallKibanaAssetsAndReferences.mockImplementation(async () => {
+        throw new Error('mocked async error A: should be caught');
+      });
+
+      // pick any function between when those are called and when await Promise.all is defined later
+      // and force it to take long enough for the errors to occur
+      // @ts-expect-error about call signature
+      mockedUpdateCurrentWriteIndices.mockImplementation(async () => await sleep(1000));
+      mockedInstallIndexTemplatesAndPipelines.mockResolvedValue({
+        installedTemplates: [],
+        esReferences: [],
+      });
+
+      const installationPromise = _installPackage({
+        savedObjectsClient: soClient,
+        // @ts-ignore
+        savedObjectsImporter: jest.fn(),
+        esClient,
+        logger: loggerMock.create(),
+        paths: [],
+        packageInfo: {
+          title: 'title',
+          name: 'xyz',
+          version: '4.5.6',
+          description: 'test',
+          type: 'integration',
+          categories: ['cloud', 'custom'],
+          format_version: 'string',
+          release: 'experimental',
+          conditions: { kibana: { version: 'x.y.z' } },
+          owner: { github: 'elastic/fleet' },
+        },
+        installType: 'install',
+        installSource: 'registry',
+        spaceId: DEFAULT_SPACE_ID,
+      });
+
+      // if we have a .catch this will fail nicely (test pass)
+      // otherwise the test will fail with either of the mocked errors
+      await expect(installationPromise).rejects.toThrow('mocked');
+      await expect(installationPromise).rejects.toThrow('should be caught');
     });
 
-    // pick any function between when those are called and when await Promise.all is defined later
-    // and force it to take long enough for the errors to occur
-    // @ts-expect-error about call signature
-    mockedUpdateCurrentWriteIndices.mockImplementation(async () => await sleep(1000));
-    mockedInstallIndexTemplatesAndPipelines.mockResolvedValue({
-      installedTemplates: [],
-      esReferences: [],
-    });
-    const installationPromise = _installPackage({
-      savedObjectsClient: soClient,
-      // @ts-ignore
-      savedObjectsImporter: jest.fn(),
-      esClient,
-      logger: loggerMock.create(),
-      paths: [],
-      packageInfo: {
-        title: 'title',
-        name: 'xyz',
-        version: '4.5.6',
-        description: 'test',
-        type: 'integration',
-        categories: ['cloud', 'custom'],
-        format_version: 'string',
-        release: 'experimental',
-        conditions: { kibana: { version: 'x.y.z' } },
-        owner: { github: 'elastic/fleet' },
-      },
-      installType: 'install',
-      installSource: 'registry',
-      spaceId: DEFAULT_SPACE_ID,
-    });
+    it('handles SavedObjectConflict errors', async () => {
+      mockedInstallKibanaAssetsAndReferences.mockRejectedValue({
+        error: 'SavedObjectsClient/conflict',
+        message: 'Mocked SavedObjectConflict error',
+      });
 
-    // if we have a .catch this will fail nicely (test pass)
-    // otherwise the test will fail with either of the mocked errors
-    await expect(installationPromise).rejects.toThrow('mocked');
-    await expect(installationPromise).rejects.toThrow('should be caught');
+      mockedUpdateCurrentWriteIndices.mockImplementation(async () => await sleep(1000));
+      mockedInstallIndexTemplatesAndPipelines.mockResolvedValue({
+        installedTemplates: [],
+        esReferences: [],
+      });
+
+      const installationPromise = _installPackage({
+        savedObjectsClient: soClient,
+        // @ts-ignore
+        savedObjectsImporter: jest.fn(),
+        esClient,
+        logger: loggerMock.create(),
+        paths: [],
+        packageInfo: {
+          title: 'title',
+          name: 'xyz',
+          version: '4.5.6',
+          description: 'test',
+          type: 'integration',
+          categories: ['cloud', 'custom'],
+          format_version: 'string',
+          release: 'experimental',
+          conditions: { kibana: { version: 'x.y.z' } },
+          owner: { github: 'elastic/fleet' },
+        },
+        installType: 'install',
+        installSource: 'registry',
+        spaceId: DEFAULT_SPACE_ID,
+      });
+
+      await expect(installationPromise).rejects.toThrow(
+        expect.any(PackageInstallationSavedObjectConflictError)
+      );
+    });
   });
 
   it('do not install ILM policies if disabled in config', async () => {

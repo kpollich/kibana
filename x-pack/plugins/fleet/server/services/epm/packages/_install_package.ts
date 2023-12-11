@@ -46,7 +46,10 @@ import { installTransforms } from '../elasticsearch/transform/install';
 import { installMlModel } from '../elasticsearch/ml_model';
 import { installIlmForDataStream } from '../elasticsearch/datastream_ilm/install';
 import { saveArchiveEntries } from '../archive/storage';
-import { ConcurrentInstallOperationError } from '../../../errors';
+import {
+  ConcurrentInstallOperationError,
+  PackageInstallationSavedObjectConflictError,
+} from '../../../errors';
 import { appContextService, packagePolicyService } from '../..';
 
 import { auditLoggingService } from '../../audit_logging';
@@ -110,7 +113,6 @@ export async function _installPackage({
         MAX_TIME_COMPLETE_INSTALL;
 
       // if the installation is currently running, don't try to install
-      // instead, only return already installed assets
       if (isStatusInstalling && hasExceededTimeout) {
         // If this is a forced installation, ignore the timeout and restart the installation anyway
         if (force) {
@@ -148,6 +150,8 @@ export async function _installPackage({
         verificationResult,
       });
     }
+
+    console.log({ installKibanaAssetsAndReferences });
 
     const kibanaAssetPromise = withPackageSpan('Install Kibana assets', () =>
       installKibanaAssetsAndReferences({
@@ -306,6 +310,7 @@ export async function _installPackage({
     }
 
     const installedKibanaAssetsRefs = await kibanaAssetPromise;
+    console.log({ installedKibanaAssetsRefs });
     const packageAssetResults = await withPackageSpan('Update archive entries', () =>
       saveArchiveEntries({
         savedObjectsClient,
@@ -358,10 +363,10 @@ export async function _installPackage({
     return [...installedKibanaAssetsRefs, ...esReferences];
   } catch (err) {
     if (SavedObjectsErrorHelpers.isConflictError(err)) {
-      throw new ConcurrentInstallOperationError(
-        `Concurrent installation or upgrade of ${pkgName || 'unknown'}-${
+      throw new PackageInstallationSavedObjectConflictError(
+        `Encountered a saved object conflict while installing ${pkgName || 'unknown'}-${
           pkgVersion || 'unknown'
-        } detected, aborting. Original error: ${err.message}`
+        }: ${err.message}`
       );
     } else {
       throw err;
