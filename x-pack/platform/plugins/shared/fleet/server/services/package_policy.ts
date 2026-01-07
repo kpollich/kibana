@@ -1242,10 +1242,9 @@ class PackagePolicyClientImpl implements PackagePolicyClient {
 
     for (const policyId of packagePolicyUpdate.policy_ids) {
       const agentPolicy = await agentPolicyService.get(soClient, policyId, true);
-      if ((agentPolicy?.space_ids?.length ?? 0) > 1) {
-        throw new FleetError(
-          'Reusable integration policies cannot be used with agent policies belonging to multiple spaces.'
-        );
+
+      if (agentPolicy) {
+        validateReusableIntegrationsAndSpaceAwareness(packagePolicy, [agentPolicy]);
       }
 
       validateDeploymentModesForInputs(
@@ -1542,6 +1541,7 @@ class PackagePolicyClientImpl implements PackagePolicyClient {
           oldPackagePolicy.package &&
           semverGt(packagePolicy.package.version, oldPackagePolicy.package.version)
         ) {
+
           logger.debug(
             `Saving previous revision of package policy ${id} with package version ${oldPackagePolicy.version}`
           );
