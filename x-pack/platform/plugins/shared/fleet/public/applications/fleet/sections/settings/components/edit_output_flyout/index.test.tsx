@@ -480,7 +480,6 @@ describe('EditOutputFlyout', () => {
       );
     });
   });
-
   describe('OpenTelemetry Exporter section', () => {
     it('should show the OTel exporter configuration section for ES output', async () => {
       const { utils } = renderFlyout({
