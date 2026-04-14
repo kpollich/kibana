@@ -85,8 +85,7 @@ const kafkaSectionsLabels = ['Partitioning', 'Topics', 'Headers', 'Compression',
 
 const remoteEsOutputLabels = ['Hosts', 'Service token'];
 
-// Failing: See https://github.com/elastic/kibana/issues/262076
-describe.skip('EditOutputFlyout', () => {
+describe('EditOutputFlyout', () => {
   const mockStartServices = (isServerlessEnabled?: boolean) => {
     mockUseStartServices.mockReturnValue({
       notifications: {
@@ -481,6 +480,51 @@ describe.skip('EditOutputFlyout', () => {
       );
     });
   });
+  it('should not disable hosts input for remote ES output in serverless', async () => {
+    mockStartServices(true);
+    jest.spyOn(licenseService, 'isEnterprise').mockReturnValue(true);
+
+    mockedUseFleetStatus.mockReturnValue({
+      isLoading: false,
+      isReady: true,
+      isSecretsStorageEnabled: true,
+    } as any);
+
+    const { utils } = renderFlyout({
+      type: 'remote_elasticsearch',
+      name: 'remote es output',
+      id: 'outputR',
+      is_default: false,
+      is_default_monitoring: false,
+      hosts: ['https://remote-host:9200'],
+    });
+
+    await waitFor(() => {
+      expect(utils.queryByDisplayValue('https://remote-host:9200')).not.toBeNull();
+    });
+
+    expect(utils.getByDisplayValue('https://remote-host:9200')).not.toBeDisabled();
+  });
+
+  it('should disable hosts input for ES output in serverless', async () => {
+    mockStartServices(true);
+
+    const { utils } = renderFlyout({
+      type: 'elasticsearch',
+      name: 'elasticsearch output',
+      id: 'output123',
+      is_default: false,
+      is_default_monitoring: false,
+      hosts: ['https://es-host:9200'],
+    });
+
+    await waitFor(() => {
+      expect(utils.queryByDisplayValue('https://es-host:9200')).not.toBeNull();
+    });
+
+    expect(utils.getByDisplayValue('https://es-host:9200')).toBeDisabled();
+  });
+
   describe('OpenTelemetry Exporter section', () => {
     it('should show the OTel exporter configuration section for ES output', async () => {
       const { utils } = renderFlyout({

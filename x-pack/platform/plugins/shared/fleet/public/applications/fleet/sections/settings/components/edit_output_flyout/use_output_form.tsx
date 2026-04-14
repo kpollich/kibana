@@ -266,12 +266,15 @@ export function useOutputForm(onSucess: () => void, output?: Output, defaultOutp
     validateCATrustedFingerPrint,
     isDisabled('ca_trusted_fingerprint')
   );
-  // ES output's host URL is restricted to default in serverless
+  // ES output's host URL is restricted to default in serverless, but not for remote ES outputs
   const isServerless = cloud?.isServerlessEnabled;
+  const isRemoteEsType = typeInput.value === outputType.RemoteElasticsearch;
   // Set the hosts to default for new ES output in serverless.
   const elasticsearchUrlDefaultValue =
-    isServerless && !output?.hosts ? defaultOutput?.hosts || [] : output?.hosts || [];
-  const elasticsearchUrlDisabled = isServerless || isDisabled('hosts');
+    isServerless && !isRemoteEsType && !output?.hosts
+      ? defaultOutput?.hosts || []
+      : output?.hosts || [];
+  const elasticsearchUrlDisabled = (isServerless && !isRemoteEsType) || isDisabled('hosts');
   const elasticsearchUrlInput = useComboInput(
     'esHostsComboxBox',
     elasticsearchUrlDefaultValue,
