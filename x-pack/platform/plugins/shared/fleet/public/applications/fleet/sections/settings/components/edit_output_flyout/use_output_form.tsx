@@ -5,7 +5,7 @@
  * 2.0.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { i18n } from '@kbn/i18n';
 
@@ -280,6 +280,32 @@ export function useOutputForm(onSucess: () => void, output?: Output, defaultOutp
     elasticsearchUrlDefaultValue,
     validateESHosts,
     elasticsearchUrlDisabled
+  );
+
+  // When the output type changes away from Remote ES on serverless, reset the ES hosts
+  // to the default serverless host. This avoids the remote ES hosts value persisting in the
+  // (now disabled) input after toggling back to regular ES.
+  const typeOnChange = typeInput.props.onChange;
+  const setElasticsearchUrlValue = elasticsearchUrlInput.setValue;
+  const defaultServerlessHosts = defaultOutput?.hosts;
+  const handleTypeChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+      typeOnChange(e);
+      if (isServerless && e.target.value !== outputType.RemoteElasticsearch) {
+        setElasticsearchUrlValue(defaultServerlessHosts || []);
+      }
+    },
+    [typeOnChange, isServerless, setElasticsearchUrlValue, defaultServerlessHosts]
+  );
+  const wrappedTypeInput = useMemo(
+    () => ({
+      ...typeInput,
+      props: {
+        ...typeInput.props,
+        onChange: handleTypeChange,
+      },
+    }),
+    [typeInput, handleTypeChange]
   );
 
   const presetInput = useInput(
@@ -611,7 +637,7 @@ export function useOutputForm(onSucess: () => void, output?: Output, defaultOutp
 
   const inputs: OutputFormInputsType = {
     nameInput,
-    typeInput,
+    typeInput: wrappedTypeInput,
     elasticsearchUrlInput,
     diskQueueEnabledInput,
     diskQueuePathInput,
