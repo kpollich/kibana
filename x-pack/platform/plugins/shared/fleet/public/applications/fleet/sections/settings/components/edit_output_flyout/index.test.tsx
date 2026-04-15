@@ -530,7 +530,7 @@ describe('EditOutputFlyout', () => {
     expect(utils.getByDisplayValue('https://es-host:9200')).toBeDisabled();
   });
 
-  it('should reset hosts to default when switching from remote ES to ES in serverless', async () => {
+  it('should show default ES hosts when switching from remote ES to ES in serverless', async () => {
     mockStartServices(true);
     jest.spyOn(licenseService, 'isEnterprise').mockReturnValue(true);
 
@@ -572,7 +572,7 @@ describe('EditOutputFlyout', () => {
     });
   });
 
-  it('should clear hosts when switching from ES to remote ES in serverless', async () => {
+  it('should show empty hosts when switching from ES to remote ES in serverless', async () => {
     mockStartServices(true);
     jest.spyOn(licenseService, 'isEnterprise').mockReturnValue(true);
 
