@@ -572,6 +572,49 @@ describe('EditOutputFlyout', () => {
     });
   });
 
+  it('should clear hosts when switching from ES to remote ES in serverless', async () => {
+    mockStartServices(true);
+    jest.spyOn(licenseService, 'isEnterprise').mockReturnValue(true);
+
+    mockedUseFleetStatus.mockReturnValue({
+      isLoading: false,
+      isReady: true,
+      isSecretsStorageEnabled: true,
+    } as any);
+
+    const { utils } = renderFlyout(
+      {
+        type: 'elasticsearch',
+        name: 'es output',
+        id: 'output1',
+        is_default: false,
+        is_default_monitoring: false,
+        hosts: ['https://es-host:9200'],
+      },
+      {
+        type: 'elasticsearch',
+        name: 'default output',
+        id: 'default-output',
+        is_default: true,
+        is_default_monitoring: true,
+        hosts: ['https://default-es-host:443'],
+      }
+    );
+
+    await waitFor(() => {
+      expect(utils.queryByDisplayValue('https://es-host:9200')).not.toBeNull();
+    });
+
+    // Switch type from ES to remote ES
+    const typeSelect = utils.getByTestId('settingsOutputsFlyout.typeInput');
+    fireEvent.change(typeSelect, { target: { value: 'remote_elasticsearch' } });
+
+    // The old ES host should be gone — hosts should be empty for fresh remote ES entry
+    await waitFor(() => {
+      expect(utils.queryByDisplayValue('https://es-host:9200')).toBeNull();
+    });
+  });
+
   describe('OpenTelemetry Exporter section', () => {
     it('should show the OTel exporter configuration section for ES output', async () => {
       const { utils } = renderFlyout({

@@ -282,16 +282,20 @@ export function useOutputForm(onSucess: () => void, output?: Output, defaultOutp
     elasticsearchUrlDisabled
   );
 
-  // When the output type changes away from Remote ES on serverless, reset the ES hosts
-  // to the default serverless host. This avoids the remote ES hosts value persisting in the
-  // (now disabled) input after toggling back to regular ES.
+  // ES and Remote ES share the same hosts input. Reset it when toggling between them
+  // to avoid cross-contamination of host values between the two output types.
   const typeOnChange = typeInput.props.onChange;
   const setElasticsearchUrlValue = elasticsearchUrlInput.setValue;
   const defaultServerlessHosts = defaultOutput?.hosts;
   const handleTypeChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
       typeOnChange(e);
-      if (isServerless && e.target.value !== outputType.RemoteElasticsearch) {
+      const newType = e.target.value;
+      if (newType === outputType.RemoteElasticsearch) {
+        // Clear hosts when switching to Remote ES — user will enter new remote hosts
+        setElasticsearchUrlValue([]);
+      } else if (isServerless) {
+        // Reset to default serverless hosts when switching away from Remote ES
         setElasticsearchUrlValue(defaultServerlessHosts || []);
       }
     },
