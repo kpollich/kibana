@@ -530,6 +530,25 @@ describe('EditOutputFlyout', () => {
     expect(utils.getByDisplayValue('https://es-host:9200')).toBeDisabled();
   });
 
+  it('should show default host when creating new ES output in serverless', async () => {
+    mockStartServices(true);
+
+    const { utils } = renderFlyout(undefined, {
+      type: 'elasticsearch',
+      name: 'default output',
+      id: 'default-output',
+      is_default: true,
+      is_default_monitoring: true,
+      hosts: ['https://default-es-host:443'],
+    });
+
+    await waitFor(() => {
+      expect(utils.queryByDisplayValue('https://default-es-host:443')).not.toBeNull();
+    });
+
+    expect(utils.getByDisplayValue('https://default-es-host:443')).toBeDisabled();
+  });
+
   it('should show default ES hosts when switching from remote ES to ES in serverless', async () => {
     mockStartServices(true);
     jest.spyOn(licenseService, 'isEnterprise').mockReturnValue(true);
